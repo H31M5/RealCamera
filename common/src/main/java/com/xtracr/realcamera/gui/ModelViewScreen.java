@@ -17,6 +17,8 @@ import com.xtracr.realcamera.renderer.state.BuiltModelRecord;
 import com.xtracr.realcamera.renderer.state.VertexData;
 import com.xtracr.realcamera.util.LocUtil;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.*;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -39,8 +41,9 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.UnaryOperator;
 
-public final class ModelViewScreen extends Screen {
+public final class ModelViewScreen extends Screen implements CategoryHost {
     private static final int SELECTION_COLOR = 0x4F3333CC;
     private static final int SIDE_PANEL_BG = 0xFF444444, CENTER_PANEL_BG = 0xFF222222;
     private static final int DEFAULT_SCALE = 80, MIN_SCALE = 16, MAX_SCALE = 1024;
@@ -885,7 +888,63 @@ public final class ModelViewScreen extends Screen {
         return pauseButton.getValue() == 1;
     }
 
+    // CategoryHost
+    @Override
+    public Minecraft minecraft() {
+        return minecraft;
+    }
+
+    @Override
+    public Font font() {
+        return font;
+    }
+
+    @Override
+    public LayoutConstants layout() {
+        return layoutConstants;
+    }
+
+    @Override
+    public void hostInitWidgets(int page) {
+        initWidgets(page);
+    }
+
+    @Override
+    public void hostLoadBindTarget(BindTarget target) {
+        loadBindTarget(target);
+    }
+
+    @Override
+    public BindTarget hostGenBindTarget() {
+        return genBindTarget();
+    }
+
+    @Override
+    public String getNameValue() {
+        return nameField.getValue();
+    }
+
+    @Override
+    public int getPage() {
+        return page;
+    }
+
+    @Override
+    public void screenRemoveWidget(@NonNull GuiEventListener widget) {
+        removeWidget(widget);
+    }
+
+    @Override
+    @Nullable
+    public ScreenRectangle getTextureViewArea() {
+        return textureViewArea;
+    }
+
+    @Override
     public TextureViewport getNewTextureViewport() {
         return new TextureViewport(textureViewArea, textureScale, (float) textureX, (float) textureY);
+    }
+
+    public record UIFactory (GridLayout grid, LayoutSettings smallSettings, GridLayout.RowHelper rows, UnaryOperator<AbstractWidget> addRenderable){
     }
 }
