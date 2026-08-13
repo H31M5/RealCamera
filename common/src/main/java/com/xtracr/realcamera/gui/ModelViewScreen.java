@@ -55,6 +55,7 @@ public final class ModelViewScreen extends Screen implements CategoryHost {
     private boolean initialized;
 
     private ConfigsPage configsPage;
+    private PreviewPage previewPage;
     
     
     @Nullable
@@ -69,24 +70,11 @@ public final class ModelViewScreen extends Screen implements CategoryHost {
     private final NumberField<Float> uMaxField = createFloatField(widgetWidth * 2 - 24, 0).setMin(-1f).setMax(2f);
     private final NumberField<Float> vMinField = createFloatField(widgetWidth * 2 - 24, 0).setMin(-1f).setMax(2f);
     private final NumberField<Float> vMaxField = createFloatField(widgetWidth * 2 - 24, 0).setMin(-1f).setMax(2f);
-    private final NumberField<Float> scaleField = createFloatField(widgetWidth, 1.0f).setMax(64.0f);
-    private final NumberField<Float> depthField = createFloatField(widgetWidth, 0.2f).setMax(16.0f);
     private final CycleIconButton showTextureButton = new CycleIconButton(48, 16, 0, 2).setOnValueChange(_ -> initWidgets(page));
     private final CycleIconButton pauseButton = new CycleIconButton(0, 16, 0, 2);
-    private final CycleIconButton bindXButton = new CycleIconButton(16, 16, 1, 2);
-    private final CycleIconButton bindYButton = new CycleIconButton(16, 16, 0, 2);
-    private final CycleIconButton bindZButton = new CycleIconButton(16, 16, 1, 2);
-    private final CycleIconButton bindRotButton = new CycleIconButton(16, 16, 1, 2);
-    private final NumberWidgetPair offsetXPair = new NumberWidgetPair(font, "offsetX", compactWidgetWidth, widgetHeight, ModConfig.MIN_OFFSET_F, ModConfig.MAX_OFFSET_F);
-    private final NumberWidgetPair offsetYPair = new NumberWidgetPair(font, "offsetY", compactWidgetWidth, widgetHeight, ModConfig.MIN_OFFSET_F, ModConfig.MAX_OFFSET_F);
-    private final NumberWidgetPair offsetZPair = new NumberWidgetPair(font, "offsetZ", compactWidgetWidth, widgetHeight, ModConfig.MIN_OFFSET_F, ModConfig.MAX_OFFSET_F);
-    private final NumberWidgetPair offsetPitchPair = new NumberWidgetPair(font, "pitch", compactWidgetWidth, widgetHeight, -180.0f, 180.0f);
-    private final NumberWidgetPair offsetYawPair = new NumberWidgetPair(font, "yaw", compactWidgetWidth, widgetHeight, -180.0f, 180.0f);
-    private final NumberWidgetPair offsetRollPair = new NumberWidgetPair(font, "roll", compactWidgetWidth, widgetHeight, -180.0f, 180.0f);
     private final List<DisableConfig> disableConfigs = new ArrayList<>();
     private final List<UVRectangleWidget> rectWidgets = new ArrayList<>();
     private final Map<String, Set<String>> hiddenNameMap = new HashMap<>();
-    private final List<NumberWidgetPair> widgetPairs = List.of(offsetXPair, offsetYPair, offsetZPair, offsetPitchPair, offsetYawPair, offsetRollPair);
     private final CycleButton<Integer> disableModeButton = createCyclingButtonBuilder(ImmutableMap.of(
             0, LocUtil.MODEL_VIEW_WIDGET("all").withStyle(ChatFormatting.GREEN),
             1, LocUtil.MODEL_VIEW_WIDGET("part").withStyle(ChatFormatting.BLUE)), 0)
@@ -98,15 +86,6 @@ public final class ModelViewScreen extends Screen implements CategoryHost {
             2, LocUtil.MODEL_VIEW_WIDGET("range").withStyle(ChatFormatting.BLUE)), 0)
             .withTooltip(_ -> createTooltip("selectionMode", modifierKey.getDisplayName(), modifierKey.getDisplayName()))
             .create(0, 0, wideWidgetWidth, widgetHeight, LocUtil.MODEL_VIEW_WIDGET("selectionMode"));
-    private final CycleButton<Integer> toggleSliderButton = createCyclingButtonBuilder(ImmutableMap.of(
-            0, LocUtil.MODEL_VIEW_WIDGET("toggleSliderToField"),
-            1, LocUtil.MODEL_VIEW_WIDGET("toggleFieldToSlider")), 0)
-            .displayOnlyValue()
-            .create(0, 0, wideWidgetWidth, widgetHeight, CommonComponents.EMPTY, (_, i) -> {
-                boolean useSlider = i == 0;
-                for (NumberWidgetPair pair : widgetPairs) pair.syncAndSwitch(useSlider);
-                initWidgets(page);
-            });
     private final CycleButton<Category> toggleCategoryButton = createCyclingButtonBuilder(ImmutableSortedMap.of(
             Category.CONFIGS, LocUtil.MODEL_VIEW_WIDGET(Category.CONFIGS.next().id),
             Category.PREVIEW, LocUtil.MODEL_VIEW_WIDGET(Category.PREVIEW.next().id),
@@ -146,6 +125,7 @@ public final class ModelViewScreen extends Screen implements CategoryHost {
         modifierKey = layoutConstants.modifierKey();
         if (!initialized) {
             configsPage = new ConfigsPage(this);
+            previewPage =  new PreviewPage(this);
             loadBindTarget(RealCameraCore.currentTarget());
         }
         initWidgets(page);
@@ -188,23 +168,7 @@ public final class ModelViewScreen extends Screen implements CategoryHost {
         UIFactory uiFactory = new UIFactory(grid, smallSettings, rows, this::addRenderableWidget);
         switch (toggleCategoryButton.getValue()) {
             case CONFIGS -> configsPage.initLeftWidgets(uiFactory);
-            case PREVIEW -> {
-                rows.addChild(toggleSliderButton, 2);
-                LayoutSettings numericControlSettings = grid.newCellSettings().padding(-20, 2, 0, 0);
-                rows.addChild(bindXButton, smallSettings).setTooltip(createTooltip("bindButtons"));
-                rows.addChild(offsetXPair, numericControlSettings);
-                rows.addChild(bindYButton, smallSettings).setTooltip(createTooltip("bindButtons"));
-                rows.addChild(offsetYPair, numericControlSettings);
-                rows.addChild(bindZButton, smallSettings).setTooltip(createTooltip("bindButtons"));
-                rows.addChild(offsetZPair, numericControlSettings);
-                rows.addChild(bindRotButton, smallSettings).setTooltip(createTooltip("bindButtons"));
-                rows.addChild(offsetPitchPair, numericControlSettings);
-                rows.addChild(offsetYawPair, 2, grid.newCellSettings().padding(26, 2, 0, 0));
-                rows.addChild(new SimpleIconButton(0, 0, _ -> widgetPairs.forEach(pair -> pair.setNumber(0))), smallSettings);
-                rows.addChild(offsetRollPair, numericControlSettings);
-                rows.addChild(scaleField, smallSettings).setTooltip(createTooltip("scale"));
-                rows.addChild(depthField, smallSettings).setTooltip(createTooltip("depth"));
-            }
+            case PREVIEW -> previewPage.initLeftWidgets(uiFactory);
             case DISABLE -> {
                 LayoutSettings offsetXSettings = grid.newCellSettings().padding(-13, 3, 1, 1);
                 rows.addChild(disableModeButton, 2);
@@ -570,20 +534,8 @@ public final class ModelViewScreen extends Screen implements CategoryHost {
         nameField.setValue(target.name());
         priorityField.setNumber(target.priority());
         configsPage.loadBindTarget(target);
+        previewPage.loadBindTarget(target);
         
-        depthField.setNumber(target.disablingDepth());
-        bindXButton.setValue(target.bindConfig().bindX() ? 0 : 1);
-        bindYButton.setValue(target.bindConfig().bindY() ? 0 : 1);
-        bindZButton.setValue(target.bindConfig().bindZ() ? 0 : 1);
-        bindRotButton.setValue(target.bindConfig().bindRotation() ? 0 : 1);
-        OffsetConfig offsets = target.offsets();
-        scaleField.setNumber(offsets.scale);
-        offsetXPair.setNumber(offsets.x);
-        offsetYPair.setNumber(offsets.y);
-        offsetZPair.setNumber(offsets.z);
-        offsetPitchPair.setNumber(offsets.pitch);
-        offsetYawPair.setNumber(offsets.yaw);
-        offsetRollPair.setNumber(offsets.roll);
         disableConfigs.clear();
         disableConfigs.addAll(target.disableConfigs());
         clearDisableDraft();
@@ -597,9 +549,9 @@ public final class ModelViewScreen extends Screen implements CategoryHost {
                 newDisableConfigs.set(i, currentDisableConfig);
         }
         TargetConfig targetConfig = configsPage.genTargetConfig();
-        BindConfig bindConfig = new BindConfig(bindXButton.getValue() == 0, bindYButton.getValue() == 0, bindZButton.getValue() == 0, bindRotButton.getValue() == 0);
-        OffsetConfig offsets = new OffsetConfig(scaleField.getNumber(), offsetXPair.getNumber(), offsetYPair.getNumber(), offsetZPair.getNumber(), offsetPitchPair.getNumber(), offsetYawPair.getNumber(), offsetRollPair.getNumber());
-        return new BindTarget(nameField.getValue(), configsPage.getTextureId(), priorityField.getNumber(), depthField.getNumber(),
+        BindConfig bindConfig = previewPage.genBindConfig();
+        OffsetConfig offsets = previewPage.genOffsetConfig();
+        return new BindTarget(nameField.getValue(), configsPage.getTextureId(), priorityField.getNumber(), previewPage.getDepth(),
                 targetConfig, bindConfig, offsets, newDisableConfigs);
     }
 
